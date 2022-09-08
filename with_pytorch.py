@@ -17,15 +17,22 @@ from torch.optim import lr_scheduler
 class MuhNet(nn.Module):
     def __init__(self):
         super(MuhNet, self).__init__()
-        self.linear1 = nn.Linear(28*28, 10*10)
+        self.logsigmoid1 = nn.LogSigmoid()
+        self.relu1 = nn.ReLU()
+        #self.relu2 = nn.Sigmoid()
+
+        self.conv1 = nn.Conv2d(1, 1, 4, 1)
+        self.linear1 = nn.Linear(625, 10*10)
         self.linear2 = nn.Linear(10*10, 10)
     
     def forward(self, x):
+        x = self.conv1(x)
+        #x = self.sigmoid1(x)
         x = torch.flatten(x, 1)
         x = self.linear1(x)
-        x = F.relu(x)
+        x = self.relu1(x)
         x = self.linear2(x)
-        x = F.sigmoid(x)
+        x = self.logsigmoid1(x)
         return x
 
 
@@ -98,10 +105,10 @@ anabelle = Adadelta(nt.parameters(),lr=1e-3)
 
 print(dataset.data[0].float())
 
-#scheduler = lr_scheduler.StepLR(anabelle, step_size=1, gamma=0.01)
+scheduler = lr_scheduler.StepLR(anabelle, step_size=1, gamma=0.01)
 
-for epoch in range(100):
+for epoch in range(11):
     train(nt, cpu, anabelle, epoch, dataloader=train_dataloader)
     test(nt, test_dataloader, cpu)
-    #scheduler.step()
+    scheduler.step()
 
