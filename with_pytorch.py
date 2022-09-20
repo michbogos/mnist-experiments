@@ -6,6 +6,7 @@ from torchvision.datasets import MNIST
 from torchvision import transforms
 import matplotlib.pyplot as plt
 from torch.optim import Adadelta
+from transformers import AdamW
 matplotlib.use("TkAgg")
 
 import torch.nn as nn
@@ -17,22 +18,23 @@ from torch.optim import lr_scheduler
 class MuhNet(nn.Module):
     def __init__(self):
         super(MuhNet, self).__init__()
-        self.logsigmoid1 = nn.LogSigmoid()
+        self.sigmoid1 = nn.Sigmoid()
+        self.sigmoid2 = nn.Sigmoid()
         self.relu1 = nn.ReLU()
-        #self.relu2 = nn.Sigmoid()
 
-        self.conv1 = nn.Conv2d(1, 1, 4, 1)
-        self.linear1 = nn.Linear(625, 10*10)
+        #self.conv1 = nn.Conv2d(1, 1, 4, 1)
+        self.linear1 = nn.Linear(28*28, 10*10)
         self.linear2 = nn.Linear(10*10, 10)
     
     def forward(self, x):
-        x = self.conv1(x)
+        #x = self.conv1(x)
         #x = self.sigmoid1(x)
         x = torch.flatten(x, 1)
+        x = self.sigmoid1(x)
         x = self.linear1(x)
         x = self.relu1(x)
         x = self.linear2(x)
-        x = self.logsigmoid1(x)
+        x = self.sigmoid2(x)
         return x
 
 
@@ -47,9 +49,8 @@ def train(model : MuhNet, device, optimizer : torch.optim.Optimizer, epoch, data
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
-        loss = nn.CrossEntropyLoss()
-        cross_entropy = nn.CrossEntropyLoss()
-        loss = cross_entropy(output, target)
+        cross = nn.CrossEntropyLoss()
+        loss = cross(output, target)
         loss.backward()
         optimizer.step()
         if batch % 1000 == 0:
@@ -71,6 +72,7 @@ def test(model, loader, device):
             test_loss += loss(output, target).item()  # sum up batch loss
             pred = output.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
+            #print(output, target, pred, pred.eq(target.view_as(pred)).sum().item())
         
         test_loss /= len(loader.dataset)
 
@@ -101,14 +103,11 @@ cpu = torch.device("cpu")
 
 nt = MuhNet().to(cpu)
 
-anabelle = Adadelta(nt.parameters(),lr=1e-3)
+anabelle = AdamW(nt.parameters(),lr=1e-3)
 
-print(dataset.data[0].float())
+scheduler = lr_scheduler.StepLR(anabelle, step_size=30, gamma=0.1)
 
-scheduler = lr_scheduler.StepLR(anabelle, step_size=1, gamma=0.01)
-
-for epoch in range(11):
+for epoch in range(100):
     train(nt, cpu, anabelle, epoch, dataloader=train_dataloader)
     test(nt, test_dataloader, cpu)
     scheduler.step()
-
